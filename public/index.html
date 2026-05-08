@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BCS Phishing Demo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background-color: #ffffff;
+            margin: 0;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 20px;
+            max-height: 600px;
+        }
+
+        .box { 
+            border: 2px solid black; 
+            padding: 20px; 
+            background-color: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-box {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+        }
+
+        h1 { margin-top: 0; font-size: 24px;}
+        h3 { color: gray; text-transform: uppercase; font-size: 12px; margin-top: 0; padding-bottom: 5px; }
+        
+        input { padding: 10px; margin-bottom: 15px; width: 85%; font-size: 14px; display: block; }
+        button { padding: 12px 20px; background-color: black; color: white; font-weight: bold; cursor: pointer; border: none; }
+        label { font-size: 12px; color: gray; }
+
+        #log-stream { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            font-family: monospace;
+            background-color: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .log-entry { border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 10px; }
+        .warning { color: red; font-weight: bold; }
+
+        #overlay { 
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(255, 255, 255, 0.95); 
+            text-align: center; 
+            padding-top: 100px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdnFtYW9uZjNzYjdvcGJvZ3Q3bHIzMXh6Z2EycmdkdHA3YnpiYW9sMyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/SU8dR8fjRa9FNM2N4O/giphy.gif" alt="Hacker GIF" width="600">
+        <h1 style="color: red; font-size: 60px; margin: 20px 0;">CHECK YOUR PHONE</h1>
+        <p style="font-size: 18px;">Disclaimer: Do not close this page, this webpage by design does not save its state across sessions so your logs wont appear!</p>
+    </div>
+
+    <div class="dashboard-grid">
+        
+        <div class="box">
+            <h3>1. SMS Dispatch</h3>
+            <label>Alphanumeric Sender ID:</label>
+            <input type="text" id="senderId" value="BCS-TEST">
+            
+            <label>Target Phone Number:</label>
+            <input type="text" id="phone" placeholder="+44 7000 000000">
+            
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button onclick="sendSms()">PHISH ME</button>
+                <span style="color: red; font-size: 12px; font-weight: bold;">PLEASE READ THE FOOTNOTE BEFORE USING THIS DEMO</span>
+            </div>
+        </div>
+
+        <div class="box log-box">
+            <h3>2. Captured Credentials (Live)</h3>
+            <div id="log-stream"></div>
+        </div>
+
+        <div class="box">
+            <h3>3. Project Source</h3>
+            <div id="qrcode" style="margin: auto;"></div>
+        </div>
+
+    </div>
+
+    <div style="margin-top: 30px; line-height: 1.6; color: #444;">
+        <p><strong>NOTE:</strong></p>
+        <p>
+            This is strictly for demo purposes, the data here is not saved anywhere, do not send this to anyone in real life other than yourself.
+        </p>
+        <p class="warning" style="color: red; font-weight: bold; text-transform: uppercase;">
+            PLEASE DO NOT ENTER ANYTHING LIKE 'FACEBOOK' OR 'APPLE' OR 'MUM' / 'DAD' INTO THE ALPHANUMERIC ID OR TWILIO WILL BAN MY ACCOUNT WHICH I DO USE FOR HOMELABBING!!
+        </p>
+        <p>
+            If you're curious about how this was built, you can head over to my GitHub to inspect the code for yourself.
+        </p>
+        <p>
+            this page will be deleted or i'll rotate the api keys or something after the demo so if it is not the 8th May 2026, please remind me!!!
+        </p>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+new QRCode(document.getElementById("qrcode"), { 
+    text: "https://github.com/karlwgreasley14-arch", 
+width: 140, 
+    height: 140 
+});
+
+var socket = io();
+        var logStream = document.getElementById('log-stream');
+var overlay = document.getElementById('overlay');
+
+function displayLog(data, isBrandNew) {
+    var newDiv = document.createElement('div');
+    newDiv.className = 'log-entry';
+    
+var timeString = new Date(data.timestamp).toLocaleString();
+    
+    newDiv.innerHTML = 
+        "<div style='color: gray; font-size: 11px; margin-bottom: 4px;'>" + timeString + "</div>" +
+        "<div><strong>USR:</strong> " + data.username + "</div>" +
+        "<div><strong>PWD:</strong> " + data.password + "</div>";
+    
+logStream.prepend(newDiv);
+
+    if (isBrandNew === true) {
+overlay.style.display = 'none';
+    }
+}
+
+        fetch('/api/logs').then(function(response) { 
+return response.json(); 
+        }).then(function(logsArray) {
+for (var i = 0; i < logsArray.length; i++) {
+displayLog(logsArray[i], false);
+}
+        });
+
+socket.on('new-log', function(data) {
+    displayLog(data, true);
+});
+
+function sendSms() {
+    var phoneNumber = document.getElementById('phone').value;
+var senderName = document.getElementById('senderId').value;
+    
+    if (phoneNumber === "") {
+alert("Please enter a phone number!");
+        return;
+    }
+    
+    overlay.style.display = 'block';
+    
+fetch('/api/send-sms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+        number: phoneNumber, 
+        senderId: senderName 
+    })
+}).catch(function(error) {
+    console.log("Error sending SMS: ", error);
+overlay.style.display = 'none';
+});
+}
+    </script>
+</body>
+</html>
